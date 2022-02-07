@@ -18,7 +18,7 @@ loadCount:0,
 cacheFindingAid: function(fa) {
 	if (!fa)return;
 	demo.clearAll();
-	demo.findingAidFile = rootdir + fa + "._IFS_findingaid.json";
+	demo.findingAidFile = rootdir + fa + "._IFD_findingaid.json";
 	$.ajax({url:demo.findingAidFile, dataType:"json", success:function(json) {demo.register(fa, json, false)}});	
 },
 
@@ -45,7 +45,7 @@ finalize: function() {
 },
 
 loadFindingAids: function() {
-    $.ajax({url:rootdir + "_IFS_findingaids.json", dataType:"json", 
+    $.ajax({url:rootdir + "_IFD_findingaids.json", dataType:"json", 
     	success:demo.loadLeftPanel,
     	error:function(x){ 
     		alert("failed - do you have your browser enabled for local file reading?");
@@ -105,7 +105,7 @@ loadLeftSelect: function(whatPub, whatStruc, whatSpec) {
 	for (var ai = 0; ai < aids.length; ai++) {
 		var fa = aids[ai];
 		var found = false;
-		var aid = (demo.findingAidMap[fa] ? demo.findingAidMap[fa]["IFS.findingaid"] : null);
+		var aid = (demo.findingAidMap[fa] ? demo.findingAidMap[fa]["IFD.findingaid"] : null);
 		var structures = (aid && aid.structures && aid.structures.list);
 		var spectra = (aid && aid.specData && aid.specData.list);
 		if (whatPub) {
@@ -178,7 +178,7 @@ clearFound: function(aid, defFound) {
 	var aids = demo.findingAids;
 	for (var ai = 0; ai < aids.length; ai++) {
 		var fa = aids[ai];
-		var aid = (demo.findingAidMap[fa] ? demo.findingAidMap[fa]["IFS.findingaid"] : null);
+		var aid = (demo.findingAidMap[fa] ? demo.findingAidMap[fa]["IFD.findingaid"] : null);
 		if (aid) {
 			if (aid.structures) {
 				var structures = aid.structures.list;
@@ -214,7 +214,7 @@ loadSelected: function(fa) {
 	if (fa == -1)
 		fa = demo.aid.id;
 	demo.clearAll();
-	demo.findingAidFile = rootdir + fa + "._IFS_findingaid.json";
+	demo.findingAidFile = rootdir + fa + "._IFD_findingaid.json";
 	var json = demo.findingAidMap[fa];
 	if (json) {
 		demo.loaded(json);
@@ -224,7 +224,7 @@ loadSelected: function(fa) {
 },
 
 loaded: function(json) {
-	demo.loadRightPanel(json["IFS.findingaid"]);
+	demo.loadRightPanel(json["IFD.findingaid"]);
 },
 
 loadRightPanel: function(aid) {
@@ -254,7 +254,7 @@ loadFiles: function() {
 
 loadTop: function(aid) {
 	var info = aid.pubInfo || "";
-	var s = "<h3>IFS Finding Aid " + aid.id + "</h3>";
+	var s = "<h3>IUPAC FAIRData Finding Aid " + aid.id + "</h3>";
 	s += "<table>";
 	if (info) {
 	  if (info.title) {
@@ -284,10 +284,10 @@ loadTop: function(aid) {
 		}
 		s += "</td></tr>";
 	}
-	if (aid.properties["IFS.property.collection.ref"]) {
+	if (aid.properties["IFD.property.collection.ref"]) {
 		s += "<tr><td valign=top>FAIRSpec Collection</td><td valign=top>"
-		+ "<a target=_blank href=\"" + rootdir + aid.properties["IFS.property.collection.ref"] + "\">" 
-		+ aid.properties["IFS.property.collection.ref"] + "</a> (" +  demo.bytesFor(aid.properties["IFS.property.collection.len"]) + ")"
+		+ "<a target=_blank href=\"" + rootdir + aid.properties["IFD.property.collection.ref"] + "\">" 
+		+ aid.properties["IFD.property.collection.ref"] + "</a> (" +  demo.bytesFor(aid.properties["IFD.property.collection.len"]) + ")"
 		+"</td></tr>";
 	}
 	s += "</table>";
@@ -430,10 +430,10 @@ fixSmiles: function(smiles) {
 	
 getStructureHTML: function(struc) {
 	var props = struc.properties;
-	var smiles = props["IFS.property.struc.smiles"];
+	var smiles = props["IFD.property.struc.smiles"];
 	var s = '<a href="javascript:demo.loadSelected(-1)">' + demo.aid.id + '</a> <b>' + struc.name + '</b> ' 
-		+ demo.alertHref("InChI", props["IFS.property.struc.inchi"]) 
-		+ demo.alertHref("InChIKey", props["IFS.property.struc.inchikey"])  
+		+ demo.alertHref("InChI", props["IFD.property.struc.inchi"]) 
+		+ demo.alertHref("InChIKey", props["IFD.property.struc.inchikey"])  
 		+ demo.alertHref("SMILES", smiles);
 	if (smiles) {
 		s += '&nbsp;&nbsp;<a target=_blank href="https://chemapps.stolaf.edu/jmol/jmol.php?model='+demo.fixSmiles(smiles)+'">3D model</a>&nbsp;&nbsp;'
@@ -445,16 +445,16 @@ getStructureHTML: function(struc) {
 		for (var i = 0; i < struc.list.length; i++) {
 			var rep = struc.list[i];
 			switch (rep.type) {
-			case "IFS.representation.struc.mol.2d":
+			case "IFD.representation.struc.mol.2d":
 				s += demo.repHref(rep, "mol-2d","");			
 				break;
-			case "IFS.representation.struc.cdx":
+			case "IFD.representation.struc.cdx":
 				if (cdxRep == null) {
 					s += demo.repHref(rep, "cdx", "");
 					cdxRep = rep;
 				}
 				break;
-			case "IFS.representation.struc.png":
+			case "IFD.representation.struc.png":
 				if (imageRep == null) {
 					imageRep = rep;
 				}
@@ -502,32 +502,32 @@ getSpectrumHTML: function(spec) {
 	for (prop in spec.properties) {
 		var val = spec.properties[prop];
 		switch (prop) {
-			case "IFS.property.spec.nmr.expt.dim":
+			case "IFD.property.spec.nmr.expt.dim":
 				dim = val;
 				break;
-			case "IFS.property.spec.nmr.expt.nucl.1":
+			case "IFD.property.spec.nmr.expt.nucl.1":
 				nuc1 = val;
 				break;
-			case "IFS.property.spec.nmr.expt.nucl.2":
+			case "IFD.property.spec.nmr.expt.nucl.2":
 				nuc2 = val;
 				break;
-			case "IFS.property.spec.nmr.expt.pulse.prog":
+			case "IFD.property.spec.nmr.expt.pulse.prog":
 				pulseProg = val;
 				break;
-			case "IFS.property.spec.nmr.expt.solvent":
+			case "IFD.property.spec.nmr.expt.solvent":
 				solvent = val;
 				break;
-			case "IFS.property.spec.nmr.expt.temperature.K":
+			case "IFD.property.spec.nmr.expt.temperature.K":
 				temp = val;
 				break;
-			case "IFS.property.spec.nmr.instr.freq.nominal":
+			case "IFD.property.spec.nmr.instr.freq.nominal":
 				freq = val;
 				break;
-			case "IFS.property.spec.nmr.instr.manufacturer.name":
+			case "IFD.property.spec.nmr.instr.manufacturer.name":
 				manuf = val;
 				break;
-			case "IFS.property.spec.nmr.instr.probe.id":
-			case "IFS.property.spec.nmr.expt.id":
+			case "IFD.property.spec.nmr.instr.probe.id":
+			case "IFD.property.spec.nmr.expt.id":
 				break;
 		}
 	}
