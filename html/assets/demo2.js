@@ -378,7 +378,12 @@ loadStructureSpecs: function(structureSpecs) {
 		var sep = " (";
 		var specs = list[i].data;
 		for (var j = 0; j < specs.length; j++) {
+			try {
 			var spec = demo.aid.specData.list[specs[j]];
+			} catch (e) {
+					console.log("spec missing for structure " + struc.name + " " + e);
+					continue;
+			}
 			if (name.indexOf(spec.name) >= 0)
 				continue;
 			name += sep + spec.name;
@@ -431,7 +436,7 @@ fixSmiles: function(smiles) {
 getStructureHTML: function(struc) {
 	var props = struc.properties;
 	var smiles = props["IFD.property.struc.smiles"];
-	var s = '<a href="javascript:demo.loadSelected(-1)">' + demo.aid.id + '</a> <b>' + struc.name + '</b> ' 
+	var s = '<a href="javascript:demo.loadSelected(-1)">' + demo.aid.id + '</a><br><b>' + struc.name + '</b> ' 
 		+ demo.alertHref("InChI", props["IFD.property.struc.inchi"]) 
 		+ demo.alertHref("InChIKey", props["IFD.property.struc.inchikey"])  
 		+ demo.alertHref("SMILES", smiles);
@@ -560,12 +565,10 @@ getStructureSpecHTML: function(sspec, isAll) {
 		return "";
 	}
 	var s = "<tr><td><table>";		
-	s += "<tr><td><table cellspacing=0 cellpadding=10><tr>";
-	for (var j = 0; j < strucs.length; j++) {
-		s += "<td valign=top>" + demo.getStructureHTML(structures[strucs[j]]) + "</td>";
-	}
-	s += "</tr></table></td></tr>";
 	s += "<tr><td><table cellspacing=0 cellpadding=10><tr>"
+		for (var j = 0; j < strucs.length; j++) {
+			s += "<td valign=top>" + demo.getStructureHTML(structures[strucs[j]]) + "</td>";
+		}
 	for (var  j= 0; j < specs.length; j++) {
 		s += "<td valign=top class=td" + (j%2) + ">" + demo.getSpectrumHTML(spectra[specs[j]]) + "</td>";
 	}
