@@ -3,6 +3,7 @@ package org.iupac.fairdata.assoc;
 import org.iupac.fairdata.common.IFDException;
 import org.iupac.fairdata.core.IFDCollection;
 import org.iupac.fairdata.core.IFDDataObject;
+import org.iupac.fairdata.core.IFDDataObjectCollection;
 import org.iupac.fairdata.spec.IFDStructureSpec;
 import org.iupac.fairdata.struc.IFDStructure;
 
@@ -44,9 +45,12 @@ public abstract class IFDStructureDataAssociationCollection extends IFDCollectio
 			IFDDataObject<?> data);
 
 	
-	public IFDStructure findStructureForSpec(IFDDataObject<?> data) {
+	public IFDStructure findStructureForSpec(IFDDataObject<?> data, boolean andRemove) {
 		for (IFDStructureDataAssociation a : this) {
-			if (a.getDataObjectCollection().indexOf(data) >= 0) {
+			IFDDataObjectCollection<IFDDataObject<?>> c = a.getDataObjectCollection();
+			int i = c.indexOf(data);
+			if (i >= 0) {
+				c.remove(i);
 				return a.getStructureCollection().get(0);
 			}
 		}

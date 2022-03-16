@@ -5,10 +5,15 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Stack;
+import java.util.TreeMap;
 
 import org.iupac.fairdata.util.Util;
+import org.json.simple.JSONObject;
 
 import com.integratedgraphics.ifd.Extractor;
 import com.integratedgraphics.ifd.vendor.ByteBlockReader;
@@ -268,6 +273,9 @@ class MNovaMetadataReader extends ByteBlockReader {
 	public int mnovaVersionNumber;
 	private int nPages, nSpectra, nCDX, nMOL, nPNG;
 	private ByteOrder byteOrder0;
+	private Object outdir;
+	ArrayList<TreeMap<String, Object>> reportData;
+	private TreeMap<String, Object> pageData;
 
 	/**
 	 * For testing only, with no extractor plugin.
@@ -351,6 +359,8 @@ class MNovaMetadataReader extends ByteBlockReader {
 		mnovaVersion = readUTF16String(); // 12.0.0-20080
 		if (plugin != null)
 			plugin.setVersion(mnovaVersion);
+		else 
+			report("version", mnovaVersion, null, null);
 		System.out.println("MNova version " + mnovaVersion);
 		try {
 			mnovaVersionNumber = Integer.parseInt(mnovaVersion.substring(0, mnovaVersion.indexOf(".")));
@@ -572,6 +582,7 @@ class MNovaMetadataReader extends ByteBlockReader {
 			nSpectra++;
 			if (plugin != null)
 				plugin.newPage(nPages);
+			report("page", null, null, null);
 			readParams();
 			searchForExports(readPosition(), index, ptNext);
 		}
@@ -737,6 +748,17 @@ class MNovaMetadataReader extends ByteBlockReader {
 			return value.replace('\n', ' ') + (units == null ? "" : " " + units)
 					+ (source == null ? "" : " FROM " + source);
 		}
+
+		public HashMap<String, Object> toMap() {
+			HashMap<String, Object> map = new HashMap<>();
+			if (value != null)
+				map.put("value", value);
+			if (units != null)
+				map.put("units", units);
+			if (source != null)
+				map.put("source", source);
+			return map;
+		}
 	}
 
 	/**
@@ -756,7 +778,26 @@ class MNovaMetadataReader extends ByteBlockReader {
 		String key = readUTF16String();
 		if (plugin != null)
 			plugin.addParam(key, null, param1, param2);
+		else
+			report(key, null, param1, param2);
 		System.out.println("   " + key + " = " + param1 + (param2 == null ? "" : "," + param2));
+	}
+
+	private void report(String key, String val, Param param1, Param param2) {
+		if (reportData == null)
+			reportData = new ArrayList<TreeMap<String, Object>>();
+		if (key.equals("page")) {
+			reportData.add(pageData = new TreeMap<>());
+			pageData.put("#page", Integer.valueOf(nPages));
+		} else {
+			if (pageData == null) {
+				reportData.add(pageData = new TreeMap<>());
+				pageData.put("#page", Integer.valueOf(nPages));
+			}
+			pageData.put(key, param1 == null ? val : param1.toMap());
+			if (param2 != null)
+				pageData.put(key + "2", param2.toMap());
+		}
 	}
 
 	private void searchForExports(long pos0, int index, long ptNext) throws IOException {
@@ -1085,9 +1126,14 @@ class MNovaMetadataReader extends ByteBlockReader {
 		if (createStructureFiles) {
 			writeToFile(fname, fileData);
 		}
+		if (plugin == null) {
+			report(type, fname, null, null);
+		}
 	}
 
 	private void writeToFile(String fname, byte[] fileData) {
+		if (outdir != null)
+			fname = outdir + fname;
 		File f = new File(fname);
 		try (FileOutputStream fis = new FileOutputStream(f)) {
 			fis.write(fileData);
@@ -1166,22 +1212,51 @@ class MNovaMetadataReader extends ByteBlockReader {
 	private static int nTests;
 
 	public static void main(String[] args) {
+		int pt = 0;
+		String outdir = null;
+		if (args.length >= 2 && args[0].equals("-o")) {
+			outdir = args[1];
+			pt += 2;
+		}
 		if (args.length == 0 && testFile == null) {
-			testAll();
+			testAll(outdir);
 		} else {
-			String fname = (args.length != 0 ? args[0] : testFile != null ? testFile : testFiles[defaultTest]);
-			runFileTest(fname);
+			String fname = (args.length != pt ? args[pt] : testFile != null ? testFile : testFiles[defaultTest]);
+			
+fname = "c:/temp/mnova/(R,R)-mix2 (C6D6).mnova";			
+			
+			runFileTest(fname, outdir);
 		}
 	}
 
-	private static boolean runFileTest(String fname) {
+	private static boolean runFileTest(String fname, String outdir) {
 		try {
-			String filename = new File(fname).getAbsolutePath();
+			File f = new File(fname);
+			String filename = f.getAbsolutePath();
 // this is the 158-MB file
 			byte[] bytes = Util.getLimitedStreamBytes(new FileInputStream(filename), -1, null, true, true);
 			System.out.println(bytes.length + " bytes in " + filename);
-			new MNovaMetadataReader(bytes).process();
+			MNovaMetadataReader rdr = new MNovaMetadataReader(bytes);
+			if (outdir == null) {
+				outdir = new File("t").getAbsoluteFile().getParentFile().getAbsolutePath() + "/";
+			} else {
+				outdir = outdir.replace('\\','/');
+				if (!outdir.endsWith("/")) {
+					if (outdir.length() == 0) {
+						outdir = f.getAbsoluteFile().getParentFile().getAbsolutePath() + "/";
+					}
+					outdir += "/";
+				}
+			}
+			outdir += f.getName() + ".";
+			rdr.outdir = outdir;
+			rdr.process();
 			System.out.println("MNova file closed for " + filename);
+			if (rdr.reportData != null) {
+				Map<String, Object> data = new HashMap<>();
+				data.put("MNova.metadata", rdr.reportData);
+				rdr.writeToFile("json", new JSONObject(data).toString().getBytes());
+			}
 			return true;
 		} catch (IOException e) {
 			logError(e);
@@ -1228,12 +1303,12 @@ class MNovaMetadataReader extends ByteBlockReader {
 		}
 	}
 
-	static void testAll() {
+	static void testAll(String outdir) {
 
 		boolean ok = true;
 		for (int i = 0; i < testFiles.length; i++) {
 			nTests = i + 1;
-			if (runFileTest(testFiles[i])) {
+			if (runFileTest(testFiles[i], outdir)) {
 				System.out.println("Test " + i + " on " + testFiles[i] + " OK");
 			} else {
 				System.err.println("Test " + i + " on " + testFiles[i] + " failed");

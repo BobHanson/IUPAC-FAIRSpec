@@ -217,7 +217,7 @@ public class MestrelabIFDVendorPlugin extends IFDDefaultVendorPlugin {
 		this.page = page;
 		finalizeParams();
 		params = new LinkedHashMap<>();
-		params.put(Extractor.NEW_SPEC_KEY, "_page" + page);
+		params.put(Extractor.NEW_SPEC_KEY, "_page=" + page);
 		params.put("mnovaVersion", mnovaVersion);
 		origin = null;
 		pageList.add(params);

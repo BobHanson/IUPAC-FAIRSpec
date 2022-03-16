@@ -24,6 +24,9 @@ import org.iupac.fairdata.struc.IFDStructureCollection;
 @SuppressWarnings("serial")
 public abstract class IFDStructureDataAssociation extends IFDCollection<IFDCollection<?>> {
 	
+	private final static int ITEM_STRUC = 0;
+	private final static int ITEM_DATA = 1;
+	
 	public IFDStructureDataAssociation(String name, String type, IFDStructureCollection structureCollection, IFDDataObjectCollection<?> dataCollection) throws IFDException {
 		super(name, type, 2, structureCollection, dataCollection);
 		if (dataCollection == null || structureCollection == null)
@@ -35,16 +38,16 @@ public abstract class IFDStructureDataAssociation extends IFDCollection<IFDColle
 		if (!(o instanceof IFDStructureDataAssociation))
 			return false;
 		IFDStructureDataAssociation ss = (IFDStructureDataAssociation) o;
-		return (ss.get(0).equals(get(0)) && ss.get(1).equals(get(1)));
+		return (ss.get(ITEM_STRUC).equals(get(ITEM_STRUC)) && ss.get(ITEM_DATA).equals(get(ITEM_DATA)));
 	}
 
 	public IFDStructureCollection getStructureCollection() {
-		return (IFDStructureCollection) get(0);
+		return (IFDStructureCollection) get(ITEM_STRUC);
 	}
 
 	@SuppressWarnings("unchecked")
 	public IFDDataObjectCollection<IFDDataObject<?>> getDataObjectCollection() {
-		return (IFDDataObjectCollection<IFDDataObject<?>>) get(1);
+		return (IFDDataObjectCollection<IFDDataObject<?>>) get(ITEM_DATA);
 	}
 
 	public IFDStructure getStructure(int i) {

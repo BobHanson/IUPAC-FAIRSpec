@@ -26,6 +26,8 @@ public class IFDReference implements IFDSerializableI {
 	
 	public IFDReference(Object origin, String localName, String localPath) {
 		this.origin = origin;
+		if (localName != null && localName.indexOf("#")>= 0)
+			System.out.println("????");
 		this.localName = localName;
 		this.localPath = localPath;
 	}
@@ -38,7 +40,7 @@ public class IFDReference implements IFDSerializableI {
 		return localPath;
 	}
 	
-	public Object getLocalName() {
+	public String getLocalName() {
 		return localName;
 	}
 
@@ -53,6 +55,8 @@ public class IFDReference implements IFDSerializableI {
 			serializer.addAttr("origin", origin.toString());
 		if (localName != null) {
 			serializer.addAttr("localPath", localPath);
+			if (localName.indexOf("#") >= 0)
+				System.out.println("?????");
 			serializer.addAttr("localName", localName);
 		}
 	}

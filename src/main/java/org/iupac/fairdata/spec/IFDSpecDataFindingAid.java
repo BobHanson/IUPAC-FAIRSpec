@@ -323,6 +323,7 @@ public class IFDSpecDataFindingAid extends IFDFindingAid {
 	}
 
 	public void finalizeExtraction() {
+		finalizeCollections(null);
 		dumpSummary();
 	}
 
@@ -389,20 +390,38 @@ public class IFDSpecDataFindingAid extends IFDFindingAid {
 
 	@Override
 	protected void serializeList(IFDSerializerI serializer) {
-		listCollection(serializer, "structures", structureCollection);
-		listCollection(serializer, "specData", specDataCollection);
-		listCollection(serializer, "structureSpecData", structureSpecCollection);
-		listCollection(serializer, "structureSpecAnalyses", structureSpecAnalysisCollection);
-		listCollection(serializer, "samples", sampleCollection);
-		listCollection(serializer, "sampleSpecData", sampleSpecCollection);
-		listCollection(serializer, "sampleSpecAnalyses", sampleSpecAnalysisCollection);
+		finalizeCollections(serializer);
 	}
 
-	private void listCollection(IFDSerializerI serializer, String name, IFDCollection<?> c) {
-		if (c != null && c.size() > 0) {
+	/**
+	 * 
+	 * @param serializer
+	 */
+	private void finalizeCollections(IFDSerializerI serializer) {
+		finalizeCollection(serializer, "structures", structureCollection);
+		finalizeCollection(serializer, "specData", specDataCollection);
+		finalizeCollection(serializer, "structureSpecData", structureSpecCollection);
+		finalizeCollection(serializer, "structureSpecAnalyses", structureSpecAnalysisCollection);
+		finalizeCollection(serializer, "samples", sampleCollection);
+		finalizeCollection(serializer, "sampleSpecData", sampleSpecCollection);
+		finalizeCollection(serializer, "sampleSpecAnalyses", sampleSpecAnalysisCollection);
+	}
+
+	/**
+	 * Reset all indices and optionally serialize this collection.
+	 * 
+	 * @param serializer
+	 * @param name
+	 * @param c
+	 */
+	private void finalizeCollection(IFDSerializerI serializer, String name, IFDCollection<?> c) {
+		if (c == null || c.size() == 0)
+			return;
+		if (serializer == null) {
 			// normalize indices
 			for (int i = c.size(); --i >= 0;)
 				((IFDObject<?>) c.get(i)).setIndex(i);
+		} else {
 			serializer.addAttrInt(name + "Count", c.size());
 			serializer.addObject(name, c);
 		}
@@ -412,16 +431,19 @@ public class IFDSpecDataFindingAid extends IFDFindingAid {
 		IFDSpecData newSpec = (IFDSpecData) spec.clone();
 		newSpec.setID(spec.getID() + idExtension);
 		getSpecDataCollection().remove(spec);
+		getSpecDataCollection().add(newSpec);
 		return newSpec;
 	}
 
 	/**
 	 * This method will return the FIRST structure associated with a spectrum
+	 * and remove it if found
 	 * @param spec
+	 * @param andRemove
 	 * @return
 	 */
-	public IFDStructure firstStructureForSpec(IFDSpecData spec) {
-		return getStructureSpecCollection().findStructureForSpec(spec);
+	public IFDStructure firstStructureForSpec(IFDSpecData spec, boolean andRemove) {
+		return getStructureSpecCollection().findStructureForSpec(spec, andRemove);
 	}
 
 	public void associate(String name, IFDStructure struc, IFDSpecData spec) {

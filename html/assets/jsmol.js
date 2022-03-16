@@ -2,13 +2,13 @@
 
 Jmol._isAsync = false;
 var jmolApplet0;
-var s = document.location.search;
-Jmol._debugCode = (s.indexOf("debugcode") >= 0);
+Jmol._debugCode = (document.location.search.indexOf("debugcode") >= 0);
 
 jmol_isReady = function(applet) {
 //	document.title = (applet._id + " - Jmol " + Jmol.___JmolVersion)
 //	Jmol._getElement(applet, "appletdiv").style.border="1px solid blue"
 }		
+
 
 var Info = {
 	width: 420,

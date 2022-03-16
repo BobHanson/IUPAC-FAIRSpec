@@ -12,9 +12,11 @@ import javajs.util.JSJSONParser;
 
 public class PubInfoExtractor {
 
-	public final static String crossciteURI = "https://data.crosscite.org/application/vnd.datacite.datacite+json/";
+	public final static String crossciteURI = "https://api.datacite.org/dois/";
+		//"https://data.crosscite.org/application/vnd.datacite.datacite+json/";
 	
 	public final static String crossrefURI = "https://api.crossref.org/works/";
+	
 
 	public static String getCrossrefUrl(String puburi) {
 		if (puburi != null && puburi.startsWith("https://doi.org/")) {
@@ -68,12 +70,13 @@ public class PubInfoExtractor {
 		map =  new LinkedHashMap<>();
 		map.put("type", "crossref");
 		map.put("url", url);
-//		System.out.println("CrossRefExtractor: " + url);
-//		Map<String, Object> crossRef = new JSJSONParser().parseMap(Util.getURLContentsAsString(url), false);
-//		map.put("info", crossRef);		
+		Map<String, Object> crossRef = new JSJSONParser().parseMap(Util.getURLContentsAsString(url), false);
+		map.put("info", crossRef);		
 		list.add(map);
 		if (crossCite != null)
 			extractCrossCiteInfo(info, crossCite);
+		else if (crossRef != null)
+			extractCrossRefInfo(info, crossRef);
 		put(info,"sources", list);
 		return info;
 	}
@@ -86,16 +89,12 @@ public class PubInfoExtractor {
 	 * @return
 	 */
 	@SuppressWarnings("unchecked")
-	public static void extractCrossRefPubInfo(String url, String pubjson, Map<String, Object> info) {
-		System.out.println(pubjson);
+	public static void extractCrossRefInfo(Map<String, Object> info, Map<String, Object> json) {
 		info.clear();
-		Map<String, Object> json = new JSJSONParser().parseMap(pubjson, false);
 		Map<String, Object> message = getMap(json, "message");
-		String title = (String) getValue((Map<String, Object>) getList(message, "titles").get(0), "title", null);
+		String title = (String) getValue(message, "title", null);
 		put(info,"title", title);
 		String doi = (String) getObject(message, "published-print", "DOI");
-		put(info,"doi", doi);
-		put(info,"url", ((Map<String, Object>) getList(message, "link").get(0)).get("URL"));
 		List<Object> author = getList(message, "author");
 		String s = "";
 		if (author != null)
@@ -107,6 +106,8 @@ public class PubInfoExtractor {
 		if (s.length() > 0) {
 			put(info,"authors", s.substring(2));
 		}
+		put(info,"doi", doi);
+		put(info,"url", ((Map<String, Object>) getList(message, "link").get(0)).get("URL"));
 	}
 
 	/**

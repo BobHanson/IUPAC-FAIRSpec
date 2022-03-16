@@ -119,7 +119,7 @@ public class Extractor implements IFDExtractorI {
 	/**
 	 * set true to allow failure to create pub info
 	 */
-	protected static boolean allowNoPubInfo = false;
+	protected static boolean allowNoPubInfo = true;
 
 	/**
 	 * don't even try to read pub info -- debugging
@@ -337,7 +337,7 @@ public class Extractor implements IFDExtractorI {
 		if (puburi != null) {
 			pubCrossrefInfo = PubInfoExtractor.getPubInfo(puburi, !skipPubInfo);
 			findingAid.setPubInfo(pubCrossrefInfo);
-			if (pubCrossrefInfo == null || pubCrossrefInfo.get("info") == null) {
+			if (pubCrossrefInfo == null || pubCrossrefInfo.get("title") == null) {
 				if (skipPubInfo) {
 					logErr("skipPubInfo == true; Finding aid does not contain PubInfo");
 				} else {
@@ -1001,21 +1001,22 @@ public class Extractor implements IFDExtractorI {
 				continue;
 			}
 			if (key.equals(NEW_SPEC_KEY)) {
+				// _page=10
 				String idExtension = (String) value;
 				IFDSpecData newSpec = findingAid.cloneSpec(localSpec, idExtension);
 				spec = newSpec;
-				struc = findingAid.firstStructureForSpec(localSpec);
-				if (struc != null) {
+				struc = findingAid.firstStructureForSpec(localSpec, true);
+				if (struc != null) {					
 					findingAid.associate(idExtension, struc, newSpec);
 					log("!Structure " + struc + " found and associated with " + spec);
 				} else {
-					findingAid.getSpecDataCollection().addSpecData(newSpec);
 					log("!SpecData " + spec + " added ");
 				}
 				IFDRepresentation rep = cache.get(localizedName);
-				cache.put(localizedName + "#" + spec.getID(), rep);
+				String ckey = localizedName + idExtension.replace('_', '#') + "\0" + localSpec.getID();
+				cache.put(ckey, rep);
 				htLocalizedNameToObject.put(localizedName, spec); // for internal use
-				htLocalizedNameToObject.put(localizedName + "#" + spec.getID(), spec);
+				htLocalizedNameToObject.put(ckey, spec);
 				continue;
 			}
 			if (key.startsWith(STRUC_FILE_DATA_KEY)) {
@@ -1032,7 +1033,7 @@ public class Extractor implements IFDExtractorI {
 					File f = getAbsoluteFileTarget(ifdPath);
 					writeBytesToFile(bytes, f);
 					String localName = localizePath(ifdPath);
-					struc = findingAid.firstStructureForSpec((IFDSpecData) spec);
+					struc = findingAid.firstStructureForSpec((IFDSpecData) spec, false);
 					if (struc == null) {
 						struc = findingAid.addStructureForSpec(rootPath, (IFDSpecData) spec, ifdRepType, ifdPath,
 								localName, name);
@@ -1077,9 +1078,21 @@ public class Extractor implements IFDExtractorI {
 	private void addRepresentation(String ifdPath, String key, IFDRepresentableObject<?> spec) {
 		String localizedName = localizePath(ifdPath);
 		linkLocalizedNameToObject(localizedName, null, spec);
-		spec.addRepresentation(ifdPath, localizedName, key, key);
+		setLocalFileLength(spec.addRepresentation(ifdPath, localizedName, key, key));
 //		IFDRepresentation rep = 
 //		rep.setSubtype(key);
+	}
+
+
+	/**
+	 * Ensure that we have a correct length in the metadata for this representation. 
+	 * as long as it exists, even if we are not writing it in this pass.
+	 * @param rep
+	 */
+	private void setLocalFileLength(IFDRepresentation rep) {
+		File f =getAbsoluteFileTarget(rep.getRef().getLocalName());
+		long len = (f.exists() ? f.length() : 0);
+		rep.setLength(len);
 	}
 
 	/**
@@ -1087,23 +1100,27 @@ public class Extractor implements IFDExtractorI {
 	 */
 	private void addCachedRepresentationsToObjects() {
 
-		for (String localizedName : cache.keySet()) {
-			IFDRepresentableObject<?> obj = htLocalizedNameToObject.get(localizedName);
+		for (String ckey : cache.keySet()) {
+			IFDRepresentableObject<?> obj = htLocalizedNameToObject.get(ckey);
 			if (obj == null) {
-				logErr("manifest not found for " + localizedName);
+				logErr("manifest not found for " + ckey);
 			} else {
-				copyCachedRepresentation(localizedName, obj);
+				copyCachedRepresentation(ckey, obj);
 			}
 
 		}
 	}
 
-	private void copyCachedRepresentation(String localizedName, IFDRepresentableObject<?> obj) {
-		IFDRepresentation r = cache.get(localizedName);		
+	private void copyCachedRepresentation(String ckey, IFDRepresentableObject<?> obj) {
+		IFDRepresentation r = cache.get(ckey);		
 		String ifdPath = r.getRef().getOrigin().toString();
 		String type = r.getType();
 		String subtype = r.getSubtype();
-		IFDRepresentation r1 = obj.addRepresentation(ifdPath, localizedName, r.getType(), null);
+		// suffix is just unique internal ID
+		int pt = ckey.indexOf('\0');
+		if (pt > 0)
+			ckey = ckey.substring(0, pt);
+		IFDRepresentation r1 = obj.addRepresentation(ifdPath, ckey, r.getType(), null);
 		if (type != null)
 			r1.setType(type);
 		if (subtype != null)
@@ -1226,7 +1243,7 @@ public class Extractor implements IFDExtractorI {
 			if (param.length() > 0) {
 				String id = m.group(key);
 				final String localizedName = localizePath(ifdPath);
-				IFDRepresentableObject<?> obj = findingAid.addObject(rootPath, param, id, localizedName);
+				IFDRepresentableObject<?> obj = findingAid.addObject(rootPath, param, id, localizedName);				
 				linkLocalizedNameToObject(localizedName, param, obj);
 				if (debugging)
 					log("found " + param + " " + id);

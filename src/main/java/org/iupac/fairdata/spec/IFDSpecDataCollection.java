@@ -21,22 +21,34 @@ public class IFDSpecDataCollection extends IFDDataObjectCollection<IFDSpecData> 
 
 	private Map<String, Constructor<?>> htConstructors = new HashMap<>();
 
+	public IFDSpecDataCollection(String name, IFDSpecData data) throws IFDException {
+		this(name);
+		addSpecData(data);
+	}
+
 	public IFDSpecDataCollection(String name) throws IFDException {
 		super(name, IFDSpecDataFindingAid.SpecType.SpecDataCollection);
 	}
 	
-	public IFDSpecDataCollection(String name, IFDSpecData data) throws IFDException {
-		super(name, IFDSpecDataFindingAid.SpecType.SpecDataCollection);
-		addSpecData(data);
-	}
-
 	public boolean addSpecData(IFDSpecData data) {
 		return super.add(data);
 	}
 	
 	public String getDataType() {
+		
 		return subtype;
 	}
+	
+	public boolean remove(Object o) {
+		return super.remove(o);
+		
+	}
+
+	public IFDSpecData remove(int i) {
+		return super.remove(i);
+		
+	}
+
 
 	/**
 	 * Use dynamic class loading to create a new IFDSpecData object, caching the

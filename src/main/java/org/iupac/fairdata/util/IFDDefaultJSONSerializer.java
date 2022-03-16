@@ -126,7 +126,9 @@ public class IFDDefaultJSONSerializer implements IFDSerializerI {
 		if (addKey) {
 			thisObj.appendNoEsc("value", val.toString());
 		} else {
-			thisObj.append(val.toString());
+			if (val != null && val.toString().indexOf('\0') >= 0)
+				System.out.println("???");
+			thisObj.append(val == null ? null : val.toString());
 		}
 	}
 

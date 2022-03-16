@@ -189,7 +189,7 @@ public class ExtractorTest extends Extractor {
 		
 		boolean debugReadOnly = false; // quick settings
 
-		boolean dataciteUp = false;
+		boolean dataciteUp = true;
 		
 		// normally true:
 		
@@ -201,11 +201,11 @@ public class ExtractorTest extends Extractor {
 		
 		readOnly = debugReadOnly; // for testing; when true, not output other than a log file is produced
 		debugging = false; // true for verbose listing of all files
-		createFindingAidsOnly = false; // true if extraction files already exist or you otherwise don't want not write
+		createFindingAidsOnly = true; // true if extraction files already exist or you otherwise don't want not write
 		allowNoPubInfo = debugReadOnly; // true to allow no internet connection and so no pub calls
 		skipPubInfo = !dataciteUp || debugReadOnly;  // true to allow no internet connection and so no pub calls
 		int first = 0; // first test to run
-		int last = 12; // last test to run; 12 max, 9 for smaller files only; 11 to skip single-mnova
+		int last = 0;//12; // last test to run; 12 max, 9 for smaller files only; 11 to skip single-mnova
 						// file test
 		
 		if (first == last) {

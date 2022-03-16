@@ -75,7 +75,6 @@ public class NmrMLVarianAcquStreamReader {
                 try {
                 dimension = Integer.parseInt(line.substring(2,3));
                 } catch (Exception e) {
-                	System.out.println("???");
                 	// ignore
                 }
         	} else
