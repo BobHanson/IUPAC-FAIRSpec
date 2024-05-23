@@ -3,7 +3,7 @@ package com.integratedgraphics.ifd.vendor.jcamp;
 import org.iupac.fairdata.api.IFDExtractorI;
 import org.iupac.fairdata.spec.nmr.IFDNMRSpecDataRepresentation;
 
-import com.integratedgraphics.ifd.util.IFDDefaultVendorPlugin;
+import com.integratedgraphics.ifd.vendor.IFDDefaultVendorPlugin;
 
 public class JCAMPDXIFDVendorPlugin extends IFDDefaultVendorPlugin {
 

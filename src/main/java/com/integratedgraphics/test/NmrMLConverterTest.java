@@ -1,4 +1,4 @@
-package com.integratedgraphics.ifd;
+package com.integratedgraphics.test;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -7,7 +7,7 @@ import java.io.FileNotFoundException;
 import org.iupac.fairdata.util.Util;
 import org.nmrml.parser.Acqu;
 
-import com.integratedgraphics.ifd.util.IFDDefaultVendorPlugin;
+import com.integratedgraphics.ifd.vendor.IFDDefaultVendorPlugin;
 import com.integratedgraphics.ifd.vendor.jeol.NmrMLJeolAcquStreamReader;
 import com.integratedgraphics.ifd.vendor.varian.NmrMLVarianAcquStreamReader;
 

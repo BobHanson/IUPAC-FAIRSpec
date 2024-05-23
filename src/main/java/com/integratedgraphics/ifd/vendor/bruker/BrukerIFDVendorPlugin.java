@@ -11,9 +11,9 @@ import org.iupac.fairdata.spec.nmr.IFDNMRSpecData;
 import org.iupac.fairdata.spec.nmr.IFDNMRSpecDataRepresentation;
 import org.iupac.fairdata.util.Util;
 
-import com.integratedgraphics.ifd.Extractor;
+import com.integratedgraphics.extractor.Extractor;
 import com.integratedgraphics.ifd.api.IFDVendorPluginI;
-import com.integratedgraphics.ifd.util.IFDDefaultVendorPlugin;
+import com.integratedgraphics.ifd.vendor.IFDDefaultVendorPlugin;
 
 import jspecview.source.JDXReader;
 

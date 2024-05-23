@@ -1,4 +1,4 @@
-package com.integratedgraphics.ifd.util;
+package com.integratedgraphics.ifd.vendor;
 
 import java.util.Map;
 import java.util.regex.Matcher;

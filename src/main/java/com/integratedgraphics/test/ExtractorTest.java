@@ -1,10 +1,12 @@
-package com.integratedgraphics.ifd;
+package com.integratedgraphics.test;
 
 import java.io.File;
 import java.io.IOException;
 
 import org.iupac.fairdata.common.IFDException;
 import org.iupac.fairdata.util.Util;
+
+import com.integratedgraphics.extractor.Extractor;
 
 /**
  * Copyright 2021 Integrated Graphics and Robert M. Hanson

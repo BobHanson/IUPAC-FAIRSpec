@@ -15,7 +15,7 @@ import java.util.TreeMap;
 import org.iupac.fairdata.util.Util;
 import org.json.simple.JSONObject;
 
-import com.integratedgraphics.ifd.Extractor;
+import com.integratedgraphics.extractor.Extractor;
 import com.integratedgraphics.ifd.vendor.ByteBlockReader;
 
 /**

@@ -6,8 +6,6 @@ import java.util.Map;
 import org.iupac.fairdata.spec.nmr.IFDNMRSpecData;
 import org.nmrml.parser.Acqu;
 
-import com.integratedgraphics.ifd.util.IFDDefaultVendorPlugin;
-
 public abstract class NmrMLIFDVendorPlugin extends IFDDefaultVendorPlugin {
 
 	private static Map<String, String> ifdMap = new HashMap<>();

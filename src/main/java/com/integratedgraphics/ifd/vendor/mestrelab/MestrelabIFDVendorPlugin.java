@@ -12,8 +12,8 @@ import org.iupac.fairdata.api.IFDExtractorI;
 import org.iupac.fairdata.spec.nmr.IFDNMRSpecData;
 import org.iupac.fairdata.spec.nmr.IFDNMRSpecDataRepresentation;
 
-import com.integratedgraphics.ifd.Extractor;
-import com.integratedgraphics.ifd.util.IFDDefaultVendorPlugin;
+import com.integratedgraphics.extractor.Extractor;
+import com.integratedgraphics.ifd.vendor.IFDDefaultVendorPlugin;
 import com.integratedgraphics.ifd.vendor.mestrelab.MNovaMetadataReader.Param;
 
 import javajs.util.PT;
