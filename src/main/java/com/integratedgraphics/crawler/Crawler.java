@@ -381,11 +381,13 @@ public class Crawler extends XmlReader {
 		String generalType = attrs.get("relationtypegeneral");
 		switch (attrs.get("relationtype")) {
 		case "References":
-			switch (generalType) {
-			case "JournalArticle":
-				type = "PUB" + type;
-				addAttrLast(type, s);
-				break;
+			if (generalType != null) {
+				switch (generalType) {
+				case "JournalArticle":
+					type = "PUB" + type;
+					addAttrLast(type, s);
+					break;
+				}
 			}
 			break;
 		case "HasPart":
