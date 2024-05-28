@@ -14,15 +14,14 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Stack;
 
 import com.integratedgraphics.util.XmlReader;
-
-import java.util.Stack;
-import java.util.TreeMap;
 
 import javajs.util.PT;
 import javajs.util.Rdr;
@@ -36,12 +35,16 @@ import javajs.util.Rdr;
  */
 
 public class Crawler extends XmlReader {
+	
+	private final static String DOWNLOAD_TYPES = ";png;jpg;jpeg;cdxml;mol;cif;xls;xlsx;mnova;mnpub;";
 	public final static String DOI_ORG = "https://doi.org/";
 	public final static String DATACITE_METADATA = "https://data.datacite.org/application/vnd.datacite.datacite+xml/";
+	public final static String FAIRSPEC_SCHEME_URI = "http://iupac.org/ifd";
+	public final static String FAIRSPEC_SUBJECT_SCHEME = "IFD";
+	private static final String OUTDIR = "c:/temp/iupac/crawler";
 
 	private final static String testPID = "10.14469/hpc/10386";
-	private String thisPID;
-	private URL thisURL;
+
 	private URL dataCiteMetadataURL;
 	private int urlDepth;
 	private List<String> ifdList;
@@ -58,20 +61,22 @@ public class Crawler extends XmlReader {
 	private Stack<Map<String, List<String>>> thisRelated = new Stack<>();
 	private String pidPath;
 	private Runnable output;
-	private File dataDir;
+	private File dataDir, fileDir;
+	private long startTime;
 
 	public Crawler(String pid) {
-		thisPID = (pid == null ? testPID : pid);
+		String thisPID = (pid == null ? testPID : pid);
 		try {
-			thisURL = new URL(DOI_ORG + thisPID);
-			dataCiteMetadataURL = getMetadataURL(testPID);
+			dataCiteMetadataURL = getMetadataURL(thisPID);
 		} catch (MalformedURLException e) {
 			addException(e);
 		}
 	}
 
-	private boolean startCrawling(File dataDir, Runnable output) {
+	private boolean startCrawling(File dataDir, File fileDir, Runnable output) {
+		this.startTime = System.currentTimeMillis();
 		this.dataDir = dataDir;
+		this.fileDir = fileDir;
 		this.output = output;
 		log = new StringBuffer();
 		ifdList = new ArrayList<String>();
@@ -95,7 +100,6 @@ public class Crawler extends XmlReader {
 		if (url == null) {
 			url = dataCiteMetadataURL;
 		}
-		thisURL = url;
 		isTop = (urlDepth == 1);
 		skipping = !isTop;
 		String currentPath = pidPath;
@@ -112,7 +116,7 @@ public class Crawler extends XmlReader {
 		} else {
 			pidPath += ">" + s + ">";
 		}
-		addAttr("open", url.toString());
+		logAttr("open", url.toString());
 		InputStream is;
 		try {
 			File dataFile = new File(dataDir, sfile);
@@ -125,19 +129,15 @@ public class Crawler extends XmlReader {
 				is = con.getInputStream();
 			}
 			byte[] metadata = getBytesAndClose(is);
-			if (metadata instanceof byte[]) {
-				if (!haveData)
-					putToFile(dataFile, (byte[]) metadata);
-				is = new ByteArrayInputStream((byte[]) metadata);
-				parseXML(is);
-				is.close();
-			} else {
-				addException(new RuntimeException(metadata.toString()));
-			}
+			if (!haveData)
+				putToFile(dataFile, (byte[]) metadata);
+			is = new ByteArrayInputStream((byte[]) metadata);
+			parseXML(is);
+			is.close();
 		} catch (Exception e) {
 			addException(e);
 		}
-		addAttr("close", url.toString());
+		logAttr("close", url.toString());
 		newLine();
 		pidPath = currentPath;
 		output.run();
@@ -150,7 +150,7 @@ public class Crawler extends XmlReader {
 	}
 
 	private static String cleanFileName(String s) {
-		return s.replaceAll("[\\/?&:+]", "_");
+		return s.replaceAll("[\\/?&:+=]", "_");
 	}
 
 	/**
@@ -163,35 +163,63 @@ public class Crawler extends XmlReader {
 		urlDepth++;
 		nReps++;
 		newLine();
-		ifdLine += "REP";
+		ifdLine += ">R";
 		System.out.println("getContentHeaders: " + url);
 		File headerFile = new File(dataDir, cleanFileName(url.toString()) + ".txt");
 		boolean haveFile = headerFile.exists();
+		String length = null, fileName = null;
+		byte[] bytes = null;
 		if (haveFile) {
-			appendData(getBytesAndClose(new FileInputStream(headerFile)));
+			bytes = getBytesAndClose(new FileInputStream(headerFile));
+			appendRepresentationHeaderAttrs(bytes);
+			String data = new String(bytes);
+			fileName = data.substring(data.indexOf("filename=") + 9);
 		} else {
 			int len = ifdLine.length();
 			HttpURLConnection con = (HttpURLConnection) url.openConnection();
 			con.setRequestMethod("HEAD");
 			Map<String, List<String>> map = con.getHeaderFields();
 			String content = map.get("Content-Type").get(0);
-			String length = null;
+			addAttrLast("URL", url.toString());
+			addAttrLast("mediaType", content);
 			List<String> item = map.get("Content-Disposition");
 			if (item != null) {
 				List<String> list = map.get("Content-Length");
 				if (list != null && !list.isEmpty())
 					length = list.get(0);
-				content = PT.getQuotedOrUnquotedAttribute(item.toString(), "filename");
+				fileName = PT.getQuotedOrUnquotedAttribute(item.toString(), "filename");
 			}
-			addData("filename", content);
-			if (length != null)
-				addData("length", length);
-			addData("mediaType", content);
-			addData("URL", url.toString());
-			putToFile(headerFile, ifdLine.substring(len).getBytes());
+			length = "" + putToFile(headerFile, ifdLine.substring(len).getBytes());
+			if (length != null) {
+				addAttrLast("length", length);
+			}
+			if (fileName != null)
+				addAttrLast("filename", fileName);
+		}
+		if (fileName != null) {
+			downloadCheck(url, new File(fileDir, cleanFileName(fileName)));
 		}
 		newLine();
 		urlDepth--;
+	}
+
+	private void downloadCheck(URL url, File file) throws IOException {
+		long modTime = file.lastModified();
+		System.out.println(file);
+		if (modTime > 0 && modTime < startTime) {
+			// existed before we started crawling
+			return;
+		}
+		String s = file.getName();
+		int pt = s.lastIndexOf(".");
+		if (pt > 0 && PT.isOneOf(s.substring(pt + 1), DOWNLOAD_TYPES)) {
+			if (modTime > 0) {
+				System.err.println("replacing " + file.getName() + " with " + url);
+			}
+			URLConnection con = url.openConnection();
+			InputStream is = con.getInputStream();
+			putToFile(file, getBytesAndClose(is));
+		}
 	}
 
 	private void parseXML(InputStream content) throws Exception {
@@ -235,14 +263,14 @@ public class Crawler extends XmlReader {
 		case "sizes":
 		case "formats":
 		case "version":
+		case "contributors":
+		case "publisher":
+		case "publicationyear":
+		case "rightsList":
 			skipping = true;
 			break;
-		case "publisher":
-		case "publicationYear":
-		case "resourceType":
-		case "contributors":
-		case "rightsList":
-			skipping = !isTop;
+		case "resourcetype":
+			skipping = false;
 			break;
 		case "relatedidentifiers":
 		case "subjects":
@@ -258,17 +286,28 @@ public class Crawler extends XmlReader {
 			skipping = false;
 			break;
 		}
-		addAttr("item", localName);
+		logAttr("item", localName);
 		for (Entry<String, String> e : atts.entrySet()) {
+			String key = e.getKey();
+			String val = e.getValue();
 			if (isData && !skipping) {
 				if (!isTop)
-					System.out.println(e.getKey());
-				addData(e.getKey(), e.getValue());
+					System.out.println(key);
+				addAttrLast(key, val);
 			} else {
-				addAttr(e.getKey(), e.getValue());
+				logAttr(key, val);
 			}
 		}
 		switch (localName) {
+		case "resourcetype":
+			switch (atts.get("resourcetypegeneral")) {
+			case "Collection":
+				pidPath += "C";
+				break;
+			case "Dataset":
+				pidPath += "D";
+			}
+			break;
 		case "relatedidentifier":
 		case "description":
 		case "subject":
@@ -285,45 +324,118 @@ public class Crawler extends XmlReader {
 		switch (localName) {
 		case "description":
 			if (s.length() > 0) {
-				addData("description", s);
+				addAttrLast("description", s);
 			}
 			break;
 		case "title":
 			if (s.length() > 0) {
-				addDataFirst("title", s);
+				addAttrFirst("title", s);
 			}
+			hack("title", s);
 			System.out.println(localName + "=" + s);
 			break;
 		case "subject":
-			attrs = thisAttrs.pop();
-			String key = attrs.get("subjectscheme");
-			if (key != null) {
-				addData(key, s);
-			}
+			attrs = getAttributes(true);
+			processSubject(attrs, s);
 			break;
 		case "relatedidentifier":
 			if (s.length() > 0) {
-				addAttr("relatedidentifier", s);
+				logAttr("relatedidentifier", s);
 			}
-			attrs = thisAttrs.pop();
-			String type = (attrs.get("relationtype").equals("HasPart") ?
-				attrs.get("relatedidentifiertype") : null);
-			if (type != null) {
-				Map<String, List<String>> map = thisRelated.get(thisRelated.size() - 1);
-				List<String> list = map.get(type);
-				if (list == null)
-					map.put(type, list = new ArrayList<String>());
-				list.add(s);
-			}
+			addRelatedIdentifier(getAttributes(true), s);
 			break;
 		default:
 			if (!skipping && s.length() > 0) {
-				addAttr("value", s);
-				addData(localName, s);
+				logAttr("value", s);
+				addAttrLast(localName, s);
 			}
 			break;
 		}
 		xmlDepth--;
+	}
+
+	private void processSubject(Map<String, String> attrs, String s) {
+//			<subjects>
+//			    <subject 
+//			schemeURI="http://iupac.org/ifd" 
+//			subjectScheme="IFD" 
+//			valueURI="http://iupac.org/ifd/IFD.compound.id">21</subject>
+//			</subjects>
+//
+		String key = attrs.get("subjectscheme");
+		switch (key) {
+		case FAIRSPEC_SUBJECT_SCHEME:
+			key = attrs.get("valueuri");
+			if (key.startsWith(FAIRSPEC_SCHEME_URI)) {
+				key = key.substring(key.lastIndexOf('/') + 1);
+			}
+			break;			
+		}
+		if (key != null) {
+			addAttrLast(key, s);
+		}
+	}
+
+	private void addRelatedIdentifier(Map<String, String> attrs, String s) {
+		String type = attrs.get("relatedidentifiertype"); // DOI or URL
+		String generalType = attrs.get("relationtypegeneral");
+		switch (attrs.get("relationtype")) {
+		case "References":
+			switch (generalType) {
+			case "JournalArticle":
+				type = "PUB" + type;
+				addAttrLast(type, s);
+				break;
+			}
+			break;
+		case "HasPart":
+			break;
+		default:
+			type = null;
+			break;
+		}
+		if (type != null) {
+			Map<String, List<String>> map = thisRelated.get(thisRelated.size() - 1);
+			List<String> list = map.get(type);
+			if (list == null)
+				map.put(type, list = new ArrayList<String>());
+			list.add(s);
+		}
+	}
+
+	private void hack(String key, String val) {
+		switch (key) {
+		case "description":
+			if (key.startsWith("DOI: ")) {
+				
+			}
+			break;
+		case "title":
+			if (key.startsWith("Compound ")) {
+				Map<String, String> attrs = new HashMap<>();
+				String id = "" + PT.parseInt(key.substring(10));
+				attrs.put("subjectscheme", "IFD");
+				attrs.put("valueuri", "IFD.compound.id");
+				processSubject(attrs, id);
+				
+//				decided this needs to be supplemented by:
+//
+//					<subjects>
+//					    <subject 
+//					schemeURI="http://iupac.org/ifd" 
+//					subjectScheme="IFD" 
+//					valueURI="http://iupac.org/ifd/IFD.compound.id">21</subject>
+//					</subjects>
+//
+//
+
+			}
+			break;
+		}
+	}
+
+	private Map<String, String> getAttributes(boolean andPop) {
+		return (andPop ? thisAttrs.pop() : thisAttrs.get(thisAttrs.size() - 1));
 	}
 
 	@Override
@@ -331,20 +443,20 @@ public class Crawler extends XmlReader {
 		// to something here?
 	}
 
-	private void appendData(byte[] bytes) {
+	private void appendRepresentationHeaderAttrs(byte[] bytes) {
 		String s = new String(bytes);
 		ifdLine += s;
 		log.append(s);
 	}
 
-	private void addData(String key, String value) {
+	private void addAttrLast(String key, String value) {
 		ifdLine += "\t" + key + "=" + cleanData(value);
-		addAttr(key, value);
+		logAttr(key, value);
 	}
 	
-	private void addDataFirst(String key, String value) {
-		ifdLine = key + "=" + cleanData(value) + "\t" + ifdLine;
-		addAttr(key, value);
+	private void addAttrFirst(String key, String value) {
+		ifdLine = "\t" + key + "=" + cleanData(value) + ifdLine;
+		logAttr(key, value);
 	}
 	
 	private static String cleanData(String s) {
@@ -359,14 +471,14 @@ public class Crawler extends XmlReader {
 		}
 		ifdLine = "";
 	}
-	private void addAttr(String key, String value) {
+	private void logAttr(String key, String value) {
 		appendLog(key + "=" + value);
 
 	}
 
 	private void addException(Exception e) {
 		e.printStackTrace();
-		addAttr("exception", e.getClass().getName() + ": " + e.getMessage());
+		logAttr("exception", e.getClass().getName() + ": " + e.getMessage());
 	}
 
 	private void appendLog(String line) {
@@ -381,12 +493,14 @@ public class Crawler extends XmlReader {
 
 	public static void main(String[] args) {
 		Crawler crawler = new Crawler(args.length > 0 ? args[0] : null);
-		String outdir = args.length > 1 ? args[1] : "c:/temp/crawler";
+		String outdir = args.length > 1 ? args[1] : OUTDIR;
 		File parent = new File(outdir);
 		File dataDir = new File(outdir, "metadata");
 		dataDir.mkdirs();
+		File fileDir = new File(outdir, "files");
+		fileDir.mkdir();
 		long t = System.currentTimeMillis();
-		crawler.startCrawling(dataDir, () -> {
+		crawler.startCrawling(dataDir, fileDir, () -> {
 			File f = new File(parent, "crawler.log");
 			System.out.println("writing " + crawler.log.length() + " bytes " + f.getAbsolutePath());
 			putToFile(f, crawler.log.toString().getBytes());
@@ -407,14 +521,18 @@ public class Crawler extends XmlReader {
 		System.out.println("done " + (System.currentTimeMillis() - t)/1000 + " sec");
 	}
 
-	private static void putToFile(File f, byte[] bytes) {
+	private static int putToFile(File f, byte[] bytes) {
+		if (bytes == null || bytes.length == 0)
+			return 0;
 		try {
 			FileOutputStream fos = new FileOutputStream(f);
 			fos.write(bytes);
 			fos.close();
 		} catch (Exception e) {
 			e.printStackTrace();
+			return 0;
 		}
+		return bytes.length;
 	}
 
 }
