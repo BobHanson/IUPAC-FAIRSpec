@@ -5,6 +5,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,6 +39,7 @@ public class Crawler extends XmlReader {
 	
 	private final static String DOWNLOAD_TYPES = ";png;jpg;jpeg;cdxml;mol;cif;xls;xlsx;mnova;mnpub;";
 	public final static String DOI_ORG = "https://doi.org/";
+	public final static String DOI_ORG_RA = "https://doi.org/doiRA/";
 	public final static String DATACITE_METADATA = "https://data.datacite.org/application/vnd.datacite.datacite+xml/";
 	public final static String FAIRSPEC_SCHEME_URI = "http://iupac.org/ifd";
 	public final static String FAIRSPEC_SUBJECT_SCHEME = "IFD";
@@ -118,31 +120,83 @@ public class Crawler extends XmlReader {
 		}
 		logAttr("open", url.toString());
 		InputStream is;
+		File dataFile = new File(dataDir, sfile);
+		boolean haveData = dataFile.exists();
+		byte[] metadata = null;
+		boolean isURI = false;
 		try {
-			File dataFile = new File(dataDir, sfile);
-			boolean haveData = dataFile.exists();
 			System.out.println("reading " + (haveData ? dataFile : url.toString()));
+			
 			if (haveData) {
 				is = new FileInputStream(dataFile);
 			} else {
 				URLConnection con = url.openConnection();
 				is = con.getInputStream();
 			}
-			byte[] metadata = getBytesAndClose(is);
+			metadata = getBytesAndClose(is);
 			if (!haveData)
 				putToFile(dataFile, (byte[]) metadata);
-			is = new ByteArrayInputStream((byte[]) metadata);
-			parseXML(is);
-			is.close();
+			else if (metadata.length > 0 && metadata[0] == '[') {
+				isURI = true;
+			} else {
+				is = new ByteArrayInputStream((byte[]) metadata);
+				parseXML(is);
+				is.close();
+			}
 		} catch (Exception e) {
+			if (e instanceof FileNotFoundException) {
+				metadata = null;
+				isURI = true;
+			}
 			addException(e);
 		}
 		logAttr("close", url.toString());
+		if (isURI) {
+			String uri, ra;
+			if (metadata == null) {
+				uri = s;
+				ra = getRegistrationAuthority(uri, dataFile);
+			} else {
+				String surl = new String(metadata);
+				uri = getSimpleJsonString(surl, "DOI");
+				ra = getSimpleJsonString(surl, "RA");
+			}
+			addAttrLast("URI", uri);
+			addAttrLast("RA", ra);
+		}
 		newLine();
 		pidPath = currentPath;
 		output.run();
 		urlDepth--;
 		return true;
+	}
+
+	private static String getSimpleJsonString(String data, String key) {
+		int pt = data.indexOf("\"" + key + "\"");
+		if (pt < 0)
+			return "?";
+		pt = data.indexOf("\"", pt+key.length() + 2);
+		if (pt < 0)
+			return "?";
+		return data.substring(pt + 1, data.indexOf("\"", pt + 1));
+	}
+
+	private String getRegistrationAuthority(String surl, File dataFile) {
+		InputStream is = null;
+		try {
+			URLConnection con = new URL(DOI_ORG_RA + surl).openConnection();
+			is = con.getInputStream();
+			String ref = new String(getBytesAndClose(is));
+			int pt = ref.indexOf("\"RA\"");
+			if (pt < 0)
+				throw new RuntimeException("no DOI registered agency field: " + ref);
+			String ra = ref.substring(pt + 4).split("\"")[1];
+			putToFile(dataFile, ref.getBytes());
+			return ra;
+		} catch (Exception e) {
+			addException(e);
+			return "?";
+		}
 	}
 
 	private static byte[] getBytesAndClose(InputStream is) throws IOException {
@@ -187,7 +241,7 @@ public class Crawler extends XmlReader {
 				List<String> list = map.get("Content-Length");
 				if (list != null && !list.isEmpty())
 					length = list.get(0);
-				fileName = PT.getQuotedOrUnquotedAttribute(item.toString(), "filename");
+				fileName = getQuotedOrUnquotedAttribute(item.toString(), "filename");
 			}
 			length = "" + putToFile(headerFile, ifdLine.substring(len).getBytes());
 			if (length != null) {
@@ -201,6 +255,10 @@ public class Crawler extends XmlReader {
 		}
 		newLine();
 		urlDepth--;
+	}
+
+	private static String getQuotedOrUnquotedAttribute(String data, String key) {
+		return PT.getQuotedOrUnquotedAttribute(data, key);
 	}
 
 	private void downloadCheck(URL url, File file) throws IOException {
@@ -363,15 +421,15 @@ public class Crawler extends XmlReader {
 //			</subjects>
 //
 		String key = attrs.get("subjectscheme");
-		switch (key) {
-		case FAIRSPEC_SUBJECT_SCHEME:
-			key = attrs.get("valueuri");
-			if (key.startsWith(FAIRSPEC_SCHEME_URI)) {
-				key = key.substring(key.lastIndexOf('/') + 1);
-			}
-			break;			
-		}
 		if (key != null) {
+			switch (key) {
+			case FAIRSPEC_SUBJECT_SCHEME:
+				key = attrs.get("valueuri");
+				if (key.startsWith(FAIRSPEC_SCHEME_URI)) {
+					key = key.substring(key.lastIndexOf('/') + 1);
+				}
+				break;			
+			}
 			addAttrLast(key, s);
 		}
 	}
@@ -452,6 +510,8 @@ public class Crawler extends XmlReader {
 	}
 
 	private void addAttrLast(String key, String value) {
+		if (value == null)
+			return;
 		ifdLine += "\t" + key + "=" + cleanData(value);
 		logAttr(key, value);
 	}
